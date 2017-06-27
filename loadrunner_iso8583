@@ -1,0 +1,179 @@
+Pos机收单系统性能压力测试实战；Socket协议测试Loadrunner脚本+8；Action:；#define_EOF'#'；#include"lrs.h"；Action()；char*recvbuf;；intrecvlen=0;；intrc;；lr_start_transaction(&qu；lrs_set_recv_
+
+
+  
+Pos机收单系统性能压力测试实战
+
+Socket协议测试Loadrunner脚本+8583报文解析
+
+Action:
+
+#define _EOF '#'
+
+#include "lrs.h"
+
+Action()
+
+{
+
+char *recvbuf;
+
+int recvlen=0;
+
+int rc;
+
+lr_start_transaction("Trans_1");
+
+lrs_set_recv_timeout (60,0);
+
+lr_start_transaction("Conn_1");
+
+rc = lrs_create_socket("socket0", "TCP", "LocalHost=0", "RemoteHost=192.168.205.150:7001", LrsLastArg); //RemoteHost处填入被测程序所在服务器IP
+
+lr_output_message("%d",rc);
+
+if (rc != 0 ) {
+
+lr_end_transaction("Conn_1", LR_FAIL);
+
+lr_end_transaction ("Trans_1", LR_FAIL);
+
+return 0;
+
+}
+
+lr_end_transaction("Conn_1", LR_PASS); //判断socket是否链接成功的事务
+
+lr_rendezvous("集合点");
+
+lrs_send("socket0","buf0", LrsLastArg);
+
+lrs_receive ("socket0","buf1",LrsLastArg);
+
+lrs_get_last_received_buffer("socket0",&recvbuf,&recvlen);
+
+if(recvlen==130)
+
+lr_end_transaction("Trans_1", LR_PASS);
+
+else
+
+lr_end_transaction ("Trans_1", LR_FAIL); //判断返回信息的长度是否正确，recvlen处填入预期返回信息的长度
+
+lrs_close_socket("socket0");
+
+return 0;
+
+}
+
+Data.ws:
+
+;WSRData 2 1
+
+send buf0 211
+
+"\x00\xD1" //报文长度
+
+"\x60\x00\x09\x00\x00" //TPDU信息
+
+"\x4C\x52\x49\x00\x1C\x00\x00\x00\x21\x58\x77\x96\x98\x00\x00\x00\x21\x58\x77\x09\x79\x58\x00\x09\x49\x00\x06\x00\x00\x00\x22\x00\x30" //主被叫号码
+
+"\x01\x00"
+
+"\x02\x00" //信息类型
+
+"\x70\x38\x05\x80\x30\xC0\x80\x19" //位图
+
+"\x19\x09\x55\x10\x04\x91\x00\x01\x35\x38\x52" //卡号
+
+"\x00\x00\x00" //处理代码
+
+"\x00\x00\x00\x00\x02\x00" //交易金额
+
+"\x00\x00\x14" //系统跟踪号
+
+"\x16\x41\x32" //本地交易时间
+
+"\x05\x20" //本地交易日期
+
+"\x00\x22" //服务点输入方式
+
+"\x00\x09" //NETWORK INTERNATIONAL IDENTIFIEER
+
+"\x14" //服务点条件代码
+
+"\x37\x09\x55\x10\x04\x91\x00\x01\x35\x38\x52\xD0\x00\x02\x20\x36\x00\x60\x00\x00" //二磁道数据
+
+"\x01\x04\x99\x95\x51\x00\x49\x10\x00\x13\x53\x85\x2D\x15\x61\x56\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x21\x41\x41\x40\x00\x01\xD0\x00\x00\x00\x00\x00\x0D\x00\x00\x00\x00\x00\x00\xD0\x00\x00\x00\x36\x00\x60\x00" //三磁道数据
+
+"\x32\x30\x31\x30\x30\x36\x30\x31" //收卡单位终端标识码
+
+"\x30\x30\x34\x31\x31\x30\x30\x34\x35\x31\x31\x30\x30\x31\x32" //收卡商户定义码 "\x01\x56" //交易货币代码
+
+"\x00\x00" //RESERVED PRIVATE
+
+"\x00\x15\x30\x30\x30\x30\x30\x31\x30\x30\x31\x30\x30\x30\x30\x30\x32"
+
+//RESERVED PRIVATE
+
+"\x61\x54\x70\xE7\x33\x6D\xB5\x48" //消息认证码
+
+recv buf1 130
+
+-1
+
+发送报文原文：
+
+00D160000900004C5249001C00000021587796980000002158770979580009490006000000220030010002007038058030C080191909551004910001353852000000000000000200000014164132052000220009143709551004910001353852D000022036006000000104999551004910001353852D1561560000000000000003000000214141400001D000000000000D000000000000D0000000360060003230313030363031303034313130303435313130303132015600000015303030303031303031303030303032615470E7336DB548
+
+是16进制的，每两位代表一个字符，所以在Loadrunner里面发送数据的应该每两位前面家转义符“\x”来代表16进制。比如“\x00”代表16进制的00。处理好以后，如同上面代码里的buf0。
+
+附：发送报文的8583解析
+
+00D1 --报文长度
+
+6000090000 --TPDU信息
+
+4C5249001C00000021587796980000002158770979580009490006000000220030 --主被叫号码
+
+0100
+
+0200 --mti 信息类型 2
+
+7038058030C08019 --bitmap 位图 10
+
+1909551004910001353852 --pan 21
+
+000000 --processing code 处理代码 24
+
+000000000200 --amount 交易金额 30
+
+000014 --SYSTEM TRACE AUDIT NUMBER 系统跟踪号 33
+
+164132 --TIME, LOCAL TRANSACTION 本地交易时间 36
+
+0520 --DATE, LOCAL TRANSACTION 本地交易日期 38
+
+0022 --POINT OF SERVICE ENTRY MODE 服务点输入方式 40
+
+0009 --NETWORK INTERNATIONAL IDENTIFIEER 42
+
+14 --POINT OF SERVICE CONDITION CODE 服务点条件代码 43
+
+3709551004910001353852D00002203600600000 --TRACK 2 DATA 二磁道数据 63
+
+0104999551004910001353852D1561560000000000000003000000214141400001D000000000000D000000000000D000000036006000
+
+--TRACK 3 DATA 三磁道数据 117
+
+3230313030363031 --CARD ACCEPTOR TERMINAL IDENTIFICACION 收卡单位终端标识码 125
+
+303034313130303435313130303132 --CARD ACCEPTOR IDENTIFICATION CODE 收卡商户定义码 140
+
+0156 --CURRENCY CODE, TRANSACTION 交易货币代码 142
+
+0000 --RESERVED PRIVATE 144
+
+0015303030303031303031303030303032 --RESERVED PRIVATE 161
+
+615470E7336DB548 --MESSAGE AUTHENTICATION CODE FIELD 消息认证码 169
